@@ -1,0 +1,7 @@
+.git
+.agents
+.codex
+.mago
+.phpstan.cache
+vendor
+var

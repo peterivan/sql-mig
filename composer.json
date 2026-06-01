@@ -1,0 +1,39 @@
+{
+  "name": "peterivan/sql-mig",
+  "description": "PostgreSQL SQL file migration runner",
+  "type": "library",
+  "license": "Apache-2.0",
+  "bin": [
+    "bin/sql-mig"
+  ],
+  "require": {
+    "php": ">=8.5",
+    "symfony/console": "^8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "PeterIvan\\SqlMig\\": "src/"
+    }
+  },
+  "scripts": {
+    "analyse": "@phpstan",
+    "check": [
+      "@phpstan",
+      "@mago:lint",
+      "@mago:analyze",
+      "@mago:format:check"
+    ],
+    "mago:analyze": "mago analyze --minimum-report-level error",
+    "mago:format": "mago format",
+    "mago:format:check": "mago format --check",
+    "mago:lint": "mago lint --minimum-report-level error",
+    "phpstan": "phpstan analyse --no-progress --memory-limit=512M"
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "require-dev": {
+    "carthage-software/mago": "^1.29",
+    "phpstan/phpstan": "^2.2"
+  }
+}

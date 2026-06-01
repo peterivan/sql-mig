@@ -1,0 +1,17 @@
+version = "1"
+php-version = "8.5"
+
+[source]
+paths = ["src", "bin/sql-mig"]
+includes = ["vendor"]
+excludes = [".git", ".phpstan.cache", "var"]
+extensions = ["php"]
+
+[source.glob]
+literal-separator = true
+
+[linter]
+minimum-fail-level = "error"
+
+[linter.rules.cyclomatic-complexity]
+threshold = 30
