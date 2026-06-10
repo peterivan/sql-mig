@@ -87,9 +87,9 @@ The app image copies Composer from the official `composer:2` image and installs 
 
 ## ADRs
 
-- `docs/adr/ADR-001 - SQL files as source of truth.md`: committed `.sql` files are authoritative; sql-mig may add operational bookkeeping but does not translate a higher-level migration language.
-- `docs/adr/ADR-002 - Migration authors own transaction boundaries.md`: migrations use one explicit top-level transaction; sql-mig records audit bookkeeping before final `COMMIT`.
-- `docs/adr/ADR-003 - Applied migrations are immutable.md`: applied migration files are immutable; formatting/comment/whitespace-only edits still count as modifications.
+- `docs/adr/ADR-001 - SQL files as source of truth.md`: authored `.sql` files are authoritative migration artifacts; run SQL may wrap them operationally but must not redefine them.
+- `docs/adr/ADR-002 - Migration authors own transaction behavior.md`: transaction intent belongs with authored SQL and selected engine policy; sql-mig must not silently invent transaction behavior.
+- `docs/adr/ADR-003 - Applied migrations are immutable.md`: applied migration history is append-only; baseline/archive/retention may change representation but must preserve traceable applied facts.
 
 Recommended next ADR:
 
