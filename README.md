@@ -20,6 +20,24 @@ vendor/bin/sql-mig apply \
   --audit-table=DatabaseVersion
 ```
 
+## Migration files
+
+Each file in the migrations directory is named `YYYY-MM-DD_HHMM_description.sql`
+or `YYYY-MM-DD_HHMM_NN_description.sql` and must start with `begin;` and end with
+`commit;`. The audit row is inserted before that final commit, so the migration
+and its record are committed together. Applied files are immutable: their
+SHA-256 checksum (computed with line endings normalized to LF, recorded as
+`sha256-lf`) is compared on every run.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Configuration error (missing database URL, missing `psql`, bad identifier, missing migrations directory) |
+| 2 | Validation error (bad filename, duplicate version, missing BEGIN/COMMIT, checksum mismatch, out-of-order or missing applied migration) |
+| 3 | Execution error (`psql` failed: connection, SQL error) |
+
 ## Local FrankenPHP Environment
 
 ```bash

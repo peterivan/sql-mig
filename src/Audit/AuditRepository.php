@@ -19,6 +19,7 @@ final class AuditRepository
         $this->psqlExecutor->executeSql(
             $config->databaseUrl,
             $this->auditSchema->createTableSql($config->auditSchema, $config->auditTable),
+            'Audit table creation',
         );
     }
 
@@ -39,7 +40,7 @@ final class AuditRepository
             order by version asc;
             SQL;
 
-        $rows = $this->psqlExecutor->queryCsv($config->databaseUrl, $sql);
+        $rows = $this->psqlExecutor->queryCsv($config->databaseUrl, $sql, 'Audit history query');
         $applied = [];
 
         foreach ($rows as $row) {
@@ -53,44 +54,35 @@ final class AuditRepository
         return $applied;
     }
 
+    /**
+     * Adds the measured execution time to the audit row's metadata. Runs after
+     * the migration's own transaction committed, so it is best effort.
+     */
+    public function recordExecutionTime(Config $config, string $version, int $executionTimeMs): void
+    {
+        $target = $this->auditSchema->quotedTarget($config->auditSchema, $config->auditTable);
+        $sql = sprintf(
+            "update %s set metadata = metadata || jsonb_build_object('executionTimeMs', %d) where version = %s;",
+            $target,
+            $executionTimeMs,
+            $this->auditSchema->quoteLiteral($version),
+        );
+
+        $this->psqlExecutor->executeSql($config->databaseUrl, $sql, 'Audit metadata update');
+    }
+
     public function tableExists(Config $config): bool
     {
         $sql = sprintf(
             'select exists (select 1 from information_schema.tables where table_schema = %s and table_name = %s);',
-            $this->quoteLiteral($config->auditSchema),
-            $this->quoteLiteral($config->auditTable),
+            $this->auditSchema->quoteLiteral($config->auditSchema),
+            $this->auditSchema->quoteLiteral($config->auditTable),
         );
 
-        $rows = $this->psqlExecutor->queryCsv($config->databaseUrl, $sql);
+        $rows = $this->psqlExecutor->queryCsv($config->databaseUrl, $sql, 'Audit table lookup');
         $firstRow = array_first($rows);
         $value = strtolower($firstRow[0] ?? '');
 
         return in_array($value, ['t', 'true', '1'], true);
-    }
-
-    public function latestVersion(Config $config): ?string
-    {
-        if (!$this->tableExists($config)) {
-            return null;
-        }
-
-        $target = $this->auditSchema->quotedTarget($config->auditSchema, $config->auditTable);
-        $sql = <<<SQL
-            select version
-            from {$target}
-            order by version desc
-            limit 1;
-            SQL;
-
-        $rows = $this->psqlExecutor->queryCsv($config->databaseUrl, $sql);
-
-        $firstRow = array_first($rows);
-
-        return $firstRow[0] ?? null;
-    }
-
-    private function quoteLiteral(string $value): string
-    {
-        return "'" . str_replace("'", "''", $value) . "'";
     }
 }

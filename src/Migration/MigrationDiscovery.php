@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PeterIvan\SqlMig\Migration;
 
 use PeterIvan\SqlMig\Exception\DuplicateMigrationVersion;
+use PeterIvan\SqlMig\Exception\MigrationDirectoryNotFound;
 
 final class MigrationDiscovery
 {
@@ -19,6 +20,10 @@ final class MigrationDiscovery
     #[\NoDiscard('Discovered migrations must be validated or applied.')]
     public function discover(string $path): array
     {
+        if (!is_dir($path) || !is_readable($path)) {
+            throw new MigrationDirectoryNotFound($path);
+        }
+
         $files = glob(rtrim($path, '/') . '/*.sql') ?: [];
         $migrations = [];
         $pathsByVersion = [];

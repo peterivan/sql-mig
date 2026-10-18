@@ -14,7 +14,7 @@ final class DatabaseUrlNormalizer
     #[\NoDiscard('Normalized database URL must be passed to psql.')]
     public function normalize(string $databaseUrl): string
     {
-        $normalized = preg_replace('/^pdo-pgsql:/i', 'postgresql:', $databaseUrl, 1) ?? $databaseUrl;
+        $normalized = preg_replace('/^(?:pdo[-_])?pgsql:/i', 'postgresql:', $databaseUrl, 1) ?? $databaseUrl;
         $queryOffset = strpos($normalized, '?');
 
         if ($queryOffset === false) {

@@ -17,6 +17,7 @@ final class AuditSchema
     {
         $quotedSchema = $this->quoteIdentifier($schema);
         $target = $this->quotedTarget($schema, $table);
+        $constraint = $this->quoteIdentifier($table . '_version_uq');
 
         return <<<SQL
             create schema if not exists {$quotedSchema};
@@ -24,12 +25,12 @@ final class AuditSchema
             create table if not exists {$target} (
                 id integer generated always as identity primary key,
                 created_at timestamp with time zone not null default now(),
-                version text not null,
+                version text collate "C" not null,
                 migration_script text not null,
                 migration_checksum text not null,
                 migration_content text not null,
                 metadata jsonb not null default '{}',
-                constraint "DatabaseVersion_version_uq" unique (version)
+                constraint {$constraint} unique (version)
             );
             SQL;
     }
@@ -41,5 +42,27 @@ final class AuditSchema
         }
 
         return '"' . str_replace('"', '""', $identifier) . '"';
+    }
+
+    public function quoteLiteral(string $value): string
+    {
+        return "'" . str_replace("'", "''", $value) . "'";
+    }
+
+    /**
+     * Dollar-quotes a value with a tag that does not occur in it, so the
+     * content needs no escaping regardless of server string settings.
+     */
+    public function quoteDollar(string $value): string
+    {
+        $tag = '$sqlmig$';
+        $suffix = 0;
+
+        while (str_contains($value, $tag)) {
+            $suffix++;
+            $tag = '$sqlmig' . $suffix . '$';
+        }
+
+        return $tag . $value . $tag;
     }
 }

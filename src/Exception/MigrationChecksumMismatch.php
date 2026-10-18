@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PeterIvan\SqlMig\Exception;
 
-final class MigrationChecksumMismatch extends SqlMigException
+final class MigrationChecksumMismatch extends ValidationException
 {
     public function __construct(string $version)
     {

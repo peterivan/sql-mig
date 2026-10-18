@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PeterIvan\SqlMig\Exception;
 
-final class OutOfOrderMigration extends SqlMigException
+final class OutOfOrderMigration extends ValidationException
 {
     public function __construct(string $version, string $latestVersion)
     {

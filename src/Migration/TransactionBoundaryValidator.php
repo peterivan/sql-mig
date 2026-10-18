@@ -88,14 +88,7 @@ final class TransactionBoundaryValidator
             }
 
             if ($char === ';') {
-                $normalized = trim(preg_replace('/\s+/', ' ', $statement) ?? '');
-                if ($normalized !== '' && $statementStart !== null) {
-                    $statements[] = [
-                        'text' => $normalized,
-                        'start' => $statementStart,
-                        'end' => $i,
-                    ];
-                }
+                $this->flush($statements, $statement, $statementStart, $i);
                 $statement = '';
                 $statementStart = null;
                 continue;
@@ -108,7 +101,29 @@ final class TransactionBoundaryValidator
             $statement .= $char;
         }
 
+        // psql executes an unterminated trailing statement at end of input,
+        // so it counts as a statement here too.
+        $this->flush($statements, $statement, $statementStart, $length);
+
         return $statements;
+    }
+
+    /**
+     * @param list<array{text: string, start: int, end: int}> $statements
+     */
+    private function flush(array &$statements, string $statement, ?int $statementStart, int $end): void
+    {
+        $normalized = trim(preg_replace('/\s+/', ' ', $statement) ?? '');
+
+        if ($normalized === '' || $statementStart === null) {
+            return;
+        }
+
+        $statements[] = [
+            'text' => $normalized,
+            'start' => $statementStart,
+            'end' => $end,
+        ];
     }
 
     private function skipUntil(string $sql, int $offset, string $needle): int

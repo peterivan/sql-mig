@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PeterIvan\SqlMig\Exception;
 
-final class DuplicateMigrationVersion extends SqlMigException
+final class DuplicateMigrationVersion extends ValidationException
 {
     /**
      * @param string[] $paths

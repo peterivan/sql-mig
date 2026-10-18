@@ -43,7 +43,7 @@ final class ValidateCommand extends Command
         } catch (SqlMigException $exception) {
             $output->writeln('<error>' . $exception->getMessage() . '</error>');
 
-            return self::FAILURE;
+            return $exception->exitCode();
         }
 
         $output->writeln('<info>Validation passed.</info>');

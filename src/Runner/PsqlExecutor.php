@@ -21,18 +21,18 @@ final class PsqlExecutor
         }
     }
 
-    public function executeSql(string $databaseUrl, string $sql): void
+    public function executeSql(string $databaseUrl, string $sql, string $label): void
     {
-        $this->run($databaseUrl, $sql);
+        $this->run($databaseUrl, $sql, $label);
     }
 
     /**
      * @return list<list<string>>
      */
     #[\NoDiscard('Query output must be consumed by the caller.')]
-    public function queryCsv(string $databaseUrl, string $sql): array
+    public function queryCsv(string $databaseUrl, string $sql, string $label): array
     {
-        $output = $this->run($databaseUrl, $sql, ['--csv', '--tuples-only']);
+        $output = $this->run($databaseUrl, $sql, $label, ['--csv', '--tuples-only']);
         $rows = [];
 
         foreach ($output as $line) {
@@ -40,7 +40,7 @@ final class PsqlExecutor
                 continue;
             }
 
-            $parsed = str_getcsv($line);
+            $parsed = str_getcsv($line, escape: '');
             $row = [];
 
             foreach ($parsed as $value) {
@@ -54,49 +54,95 @@ final class PsqlExecutor
     }
 
     /**
-     * @param string[] $extraArguments
-     * @return string[]
+     * Runs psql with the SQL on stdin. The password is removed from the URL
+     * and passed through PGPASSWORD so it does not appear in the process list.
+     *
+     * @param list<string> $extraArguments
+     * @return list<string> stdout lines
      */
-    private function run(string $databaseUrl, string $sql, array $extraArguments = []): array
+    private function run(string $databaseUrl, string $sql, string $label, array $extraArguments = []): array
     {
         $this->assertAvailable();
 
-        $handle = tmpfile();
-        if ($handle === false) {
-            throw new MigrationCommandFailed('temporary SQL file', 1, ['Unable to create temporary file.']);
-        }
+        [$connectionUrl, $password] = $this->splitPassword($databaseUrl);
 
-        fwrite($handle, $sql);
-        $metadata = stream_get_meta_data($handle);
-        $path = $metadata['uri'] ?? null;
-
-        if (!is_string($path)) {
-            fclose($handle);
-
-            throw new MigrationCommandFailed('temporary SQL file', 1, ['Unable to resolve temporary file path.']);
-        }
-
-        $arguments = array_merge([
+        $arguments = [
             'psql',
+            '--no-psqlrc',
+            '--quiet',
             '--set',
             'ON_ERROR_STOP=1',
             '--dbname',
-            $databaseUrl,
-            '--file',
-            $path,
-        ], $extraArguments);
-        $command = implode(' ', array_map('escapeshellarg', $arguments)) . ' 2>&1';
+            $connectionUrl,
+            ...$extraArguments,
+        ];
 
-        $output = [];
-        $exitCode = 0;
-
-        exec($command, $output, $exitCode);
-        fclose($handle);
-
-        if ($exitCode !== 0) {
-            throw new MigrationCommandFailed($path, $exitCode, $output);
+        $environment = getenv();
+        if ($password !== null) {
+            $environment['PGPASSWORD'] = $password;
         }
 
-        return $output;
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+        $pipes = [];
+        $process = proc_open($arguments, $descriptors, $pipes, null, $environment);
+
+        $stdin = $pipes[0] ?? null;
+        $stdoutPipe = $pipes[1] ?? null;
+        $stderrPipe = $pipes[2] ?? null;
+
+        if ($process === false || !is_resource($stdin) || !is_resource($stdoutPipe) || !is_resource($stderrPipe)) {
+            throw new MigrationCommandFailed($label, 1, ['Unable to start psql.']);
+        }
+
+        fwrite($stdin, $sql);
+        fclose($stdin);
+
+        $stdout = stream_get_contents($stdoutPipe);
+        $stderr = stream_get_contents($stderrPipe);
+        fclose($stdoutPipe);
+        fclose($stderrPipe);
+
+        $exitCode = proc_close($process);
+        $stdoutLines = $this->lines($stdout === false ? '' : $stdout);
+
+        if ($exitCode !== 0) {
+            throw new MigrationCommandFailed(
+                $label,
+                $exitCode,
+                array_merge($this->lines($stderr === false ? '' : $stderr), $stdoutLines),
+            );
+        }
+
+        return $stdoutLines;
+    }
+
+    /**
+     * @return array{string, string|null} URL without password, decoded password
+     */
+    private function splitPassword(string $databaseUrl): array
+    {
+        $matches = [];
+
+        if (preg_match('#^([a-z][a-z0-9+.-]*://[^:/?\#@]*):([^/?\#@]*)@#i', $databaseUrl, $matches) !== 1) {
+            return [$databaseUrl, null];
+        }
+
+        $withoutPassword = $matches[1] . '@' . substr($databaseUrl, strlen($matches[0]));
+
+        return [$withoutPassword, rawurldecode($matches[2])];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function lines(string $text): array
+    {
+        $text = rtrim($text, "\n");
+
+        return $text === '' ? [] : explode("\n", $text);
     }
 }

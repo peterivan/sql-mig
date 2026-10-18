@@ -34,8 +34,8 @@ final class Application extends ConsoleApplication
         );
         $configResolver = new ConfigResolver();
 
-        $this->add(new ValidateCommand($configResolver, $runner));
-        $this->add(new ApplyCommand($configResolver, $runner));
+        $this->addCommand(new ValidateCommand($configResolver, $runner));
+        $this->addCommand(new ApplyCommand($configResolver, $runner));
         $this->setDefaultCommand('list');
     }
 }

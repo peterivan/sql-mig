@@ -19,6 +19,7 @@ final class AdvisoryLock
         $this->psqlExecutor->executeSql(
             $config->databaseUrl,
             'select pg_advisory_lock(' . self::DEFAULT_LOCK_KEY . ');',
+            'Advisory lock acquisition',
         );
     }
 
@@ -27,6 +28,7 @@ final class AdvisoryLock
         $this->psqlExecutor->executeSql(
             $config->databaseUrl,
             'select pg_advisory_unlock(' . self::DEFAULT_LOCK_KEY . ');',
+            'Advisory lock release',
         );
     }
 }

@@ -15,13 +15,8 @@ final class AuditSqlInjector
     ) {}
 
     #[\NoDiscard('Injected migration SQL must be executed instead of the original content.')]
-    public function inject(
-        MigrationFile $migration,
-        string $schema,
-        string $table,
-        int $executionTimeMs,
-        string $toolVersion,
-    ): string {
+    public function inject(MigrationFile $migration, string $schema, string $table, string $toolVersion): string
+    {
         $target = $this->auditSchema->quotedTarget($schema, $table);
         $content = rtrim($migration->content);
         $commitPosition = $this->transactionBoundaryValidator->finalTopLevelStatementStart($content);
@@ -35,25 +30,19 @@ final class AuditSqlInjector
         $metadata = json_encode([
             'auditSchemaVersion' => 1,
             'toolVersion' => $toolVersion,
-            'executionTimeMs' => $executionTimeMs,
             'checksumAlgorithm' => ChecksumCalculator::ALGORITHM,
         ], JSON_THROW_ON_ERROR);
 
         $insert = sprintf(
             "insert into %s (version, migration_script, migration_checksum, migration_content, metadata)\nvalues (%s, %s, %s, %s, %s::jsonb);",
             $target,
-            $this->quoteLiteral($migration->version->value),
-            $this->quoteLiteral($migration->filename),
-            $this->quoteLiteral($migration->checksum),
-            $this->quoteLiteral($migration->content),
-            $this->quoteLiteral($metadata),
+            $this->auditSchema->quoteLiteral($migration->version->value),
+            $this->auditSchema->quoteLiteral($migration->filename),
+            $this->auditSchema->quoteLiteral($migration->checksum),
+            $this->auditSchema->quoteDollar($migration->content),
+            $this->auditSchema->quoteLiteral($metadata),
         );
 
         return $beforeCommit . "\n\n" . $insert . "\n\n" . $commit . "\n";
-    }
-
-    private function quoteLiteral(string $value): string
-    {
-        return "'" . str_replace("'", "''", $value) . "'";
     }
 }

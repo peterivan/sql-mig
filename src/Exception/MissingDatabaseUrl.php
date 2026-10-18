@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PeterIvan\SqlMig\Exception;
 
-final class MissingDatabaseUrl extends SqlMigException
+final class MissingDatabaseUrl extends ConfigurationException
 {
     public function __construct()
     {

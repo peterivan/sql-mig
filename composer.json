@@ -2,7 +2,7 @@
   "name": "peterivan/sql-mig",
   "description": "PostgreSQL SQL file migration runner",
   "type": "library",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "bin": [
     "bin/sql-mig"
   ],

@@ -7,10 +7,11 @@ namespace PeterIvan\SqlMig\Runner;
 use PeterIvan\SqlMig\Audit\AuditRepository;
 use PeterIvan\SqlMig\Config\Config;
 use PeterIvan\SqlMig\Exception\MigrationChecksumMismatch;
+use PeterIvan\SqlMig\Exception\MigrationCommandFailed;
+use PeterIvan\SqlMig\Exception\MissingAppliedMigration;
 use PeterIvan\SqlMig\Exception\OutOfOrderMigration;
 use PeterIvan\SqlMig\Migration\AuditSqlInjector;
 use PeterIvan\SqlMig\Migration\MigrationDiscovery;
-use PeterIvan\SqlMig\Migration\MigrationFile;
 use PeterIvan\SqlMig\Migration\TransactionBoundaryValidator;
 
 final class MigrationRunner
@@ -36,10 +37,12 @@ final class MigrationRunner
 
         $applied = $this->auditRepository->loadApplied($config);
         $latestVersion = $this->latestAppliedVersion(array_keys($applied));
+        $localVersions = [];
         $pending = [];
 
         foreach ($migrations as $migration) {
             $version = $migration->version->value;
+            $localVersions[$version] = true;
 
             if (isset($applied[$version])) {
                 if ($applied[$version]->checksum !== $migration->checksum) {
@@ -53,7 +56,13 @@ final class MigrationRunner
                 throw new OutOfOrderMigration($version, $latestVersion);
             }
 
-            $pending[] = $version;
+            $pending[] = $migration;
+        }
+
+        foreach (array_keys($applied) as $appliedVersion) {
+            if (!isset($localVersions[$appliedVersion])) {
+                throw new MissingAppliedMigration($appliedVersion);
+            }
         }
 
         return new ValidationResult($pending);
@@ -62,27 +71,33 @@ final class MigrationRunner
     #[\NoDiscard('Apply result must be reported to the caller.')]
     public function apply(Config $config): ApplyResult
     {
-        $this->auditRepository->ensureTable($config);
-
         $validationResult = $this->validate($config);
-        $pendingByVersion = array_flip($validationResult->pendingVersions);
-        $migrations = array_values(array_filter(
-            $this->migrationDiscovery->discover($config->migrationsPath),
-            static fn(MigrationFile $migration): bool => isset($pendingByVersion[$migration->version->value]),
-        ));
+
+        if ($validationResult->pendingMigrations === []) {
+            return new ApplyResult([]);
+        }
+
+        $this->auditRepository->ensureTable($config);
         $applied = [];
 
-        foreach ($migrations as $migration) {
+        foreach ($validationResult->pendingMigrations as $migration) {
             $script = $this->auditSqlInjector->inject(
                 $migration,
                 $config->auditSchema,
                 $config->auditTable,
-                0,
                 self::TOOL_VERSION,
             );
 
-            $this->psqlExecutor->executeSql($config->databaseUrl, $script);
+            $startedAt = microtime(true);
+            $this->psqlExecutor->executeSql($config->databaseUrl, $script, sprintf('Migration "%s"', $migration->path));
+            $executionTimeMs = (int) round((microtime(true) - $startedAt) * 1000);
             $applied[] = $migration->version->value;
+
+            try {
+                $this->auditRepository->recordExecutionTime($config, $migration->version->value, $executionTimeMs);
+            } catch (MigrationCommandFailed) {
+                // The migration is committed; a lost timing value must not fail the run.
+            }
         }
 
         return new ApplyResult($applied);

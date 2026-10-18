@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PeterIvan\SqlMig\Exception;
 
-final class MissingTransactionControl extends SqlMigException
+final class MissingTransactionControl extends ValidationException
 {
     public function __construct(string $path)
     {

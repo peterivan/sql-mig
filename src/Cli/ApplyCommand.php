@@ -43,7 +43,7 @@ final class ApplyCommand extends Command
         } catch (SqlMigException $exception) {
             $output->writeln('<error>' . $exception->getMessage() . '</error>');
 
-            return self::FAILURE;
+            return $exception->exitCode();
         }
 
         if ($result->appliedVersions === []) {

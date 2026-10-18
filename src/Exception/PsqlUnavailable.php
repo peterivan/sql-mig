@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PeterIvan\SqlMig\Exception;
 
-final class PsqlUnavailable extends SqlMigException
+final class PsqlUnavailable extends ConfigurationException
 {
     public function __construct()
     {
