@@ -43,4 +43,8 @@ docker compose exec app composer check
 docker compose exec app composer mago:format
 ```
 
-`composer check` runs PHPStan, Mago lint, Mago analyze, and Mago format checks.
+`composer check` runs PHPStan, Mago lint, Mago analyze, and Mago format checks; `composer ci` is an alias of it.
+
+## Contributing
+
+Working conventions for humans and AI agents (issues, branches, dev notes, checks) are in [`AGENTS.md`](AGENTS.md).

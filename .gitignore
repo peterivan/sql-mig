@@ -3,3 +3,5 @@
 /.mago/
 /var/
 /.idea/
+/tmp/
+/.agents/scheduled_tasks.lock

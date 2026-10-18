@@ -23,6 +23,7 @@
       "@mago:analyze",
       "@mago:format:check"
     ],
+    "ci": "@check",
     "mago:analyze": "mago analyze --minimum-report-level error",
     "mago:format": "mago format",
     "mago:format:check": "mago format --check",
