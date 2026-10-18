@@ -1,0 +1,5 @@
+/vendor/
+/.phpstan.cache/
+/.mago/
+/var/
+/.idea/
